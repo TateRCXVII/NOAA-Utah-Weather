@@ -1,0 +1,289 @@
+---
+title: "A3 - Climate in Utah"
+author: "Tate Reynolds - u0578264"
+date: "4/1/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dygraphs)
+library(xts)          # To make the convertion data-frame / xts format
+library(tidyverse)
+library(lubridate)
+library(anytime)
+library(ggplot2)
+library(viridis)
+library(dplyr)
+library(ggthemes)
+library(ggiraph)
+
+
+recent_data <- read.csv('new.csv', header = T)
+old_data <- read.csv('old.csv', header = T)
+percipitation_data <- read.csv('percipitation.csv', header = T)
+min_temp_12_22 <- read.csv('2012_to_22_minTemp.csv', header =T)
+
+recent_data$DATE <- anytime::anydate(recent_data$DATE)
+old_data$DATE <- anytime::anydate(old_data$DATE)
+percipitation_data$DATE <- anytime::anydate((percipitation_data$DATE))
+min_temp_12_22$DATE <- anytime::anydate(min_temp_12_22$DATE)
+
+#Min temps for legacy and recent data (zoomable graph)
+xts_recent_min <- xts(x = recent_data$TMIN, order.by = recent_data$DATE)
+xts_recent_max <- xts(x= recent_data$TMAX, order.by = recent_data$DATE)
+xts_old_min <- xts(x = old_data$TMIN, order.by = old_data$DATE)
+
+p_recent_min <- dygraph(xts_recent_min,  main = "Min Temperature data from 2012-2022") %>%
+  dyOptions(labelsUTC = TRUE, fillGraph=TRUE, fillAlpha=0.1, drawGrid = FALSE, colors="#5a8ed8") %>%
+  dyRangeSelector() %>%
+  dyCrosshair(direction = "vertical") %>%
+  dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 0.2, hideOnMouseOut = FALSE)  %>%
+  dyRoller(rollPeriod = 1)
+
+p_recent_max <- dygraph(xts_recent_max, main = "Max Temperature data from 2012-2022") %>%
+  dyOptions(labelsUTC = TRUE, fillGraph=TRUE, fillAlpha=0.1, drawGrid = FALSE, colors="#d87c5a") %>%
+  dyRangeSelector() %>%
+  dyCrosshair(direction = "vertical") %>%
+  dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 0.2, hideOnMouseOut = FALSE)  %>%
+  dyRoller(rollPeriod = 1)
+
+
+p_old_min <- dygraph(xts_old_min, main = "Min Temperature data from 1940-1950") %>%
+  dyOptions(labelsUTC = TRUE, fillGraph=TRUE, fillAlpha=0.1, drawGrid = FALSE, colors="#5a8ed8") %>%
+  dyRangeSelector() %>%
+  dyCrosshair(direction = "vertical") %>%
+  dyHighlight(highlightCircleSize = 5, highlightSeriesBackgroundAlpha = 0.2, hideOnMouseOut = FALSE)  %>%
+  dyRoller(rollPeriod = 1)
+
+#Heat maps
+
+#Max temp for recent data heatmaps
+
+recent_data %>% filter(DATE >= as.Date("2012-01-01") & DATE <= as.Date("2012-12-31") & STATION == "USC00423097") %>% select(DATE, TMAX) -> recent_data_2012
+
+recent_data %>% filter(DATE >= as.Date("2013-01-01") & DATE <= as.Date("2013-12-31") & STATION == "USC00423097") %>% select(DATE, TMAX) -> recent_data_2013
+
+recent_data_2012 %>% mutate(
+    date = as.Date(recent_data_2012$DATE),
+    year = year(date),
+    month = month(date, label=T, abbr=T),
+    week = strftime(date,"%W"), 
+    day = day(date),
+    TMAX = TMAX
+) -> recent_data_heatmap_12
+
+recent_data_2013 %>% mutate(
+    date = as.Date(recent_data_2013$DATE),
+    year = year(date),
+    month = month(date, label=T, abbr=T),
+    week = strftime(date,"%W"), 
+    day = day(date),
+    TMAX = TMAX
+) -> recent_data_heatmap_13
+
+p_recent_heatmap_12 <- ggplot(data = recent_data_heatmap_12, aes(x=day,y=month)) + 
+  geom_raster(aes(fill = TMAX)) + 
+  ggtitle("Heat Map of Temperatures in Utah in 2012")+
+  scale_x_continuous(breaks=c(1:31), expand=c(0,0)) + 
+  coord_equal(ratio = 1) + 
+scale_fill_viridis(option="magma") +
+  theme_tufte(base_family="Helvetica")
+
+p_recent_heatmap_13 <- ggplot(data = recent_data_heatmap_13, aes(x=day,y=month)) + 
+  geom_raster(aes(fill = TMAX)) + 
+  ggtitle("Heat Map of Temperatures in Utah in 2013")+
+  scale_x_continuous(breaks=c(1:31), expand=c(0,0)) + 
+  coord_equal(ratio = 1) + 
+scale_fill_viridis(option="magma") +
+  theme_tufte(base_family="Helvetica")
+
+#Heat maps for old data
+old_data %>% filter(DATE >= as.Date("1941-01-01") & DATE <= as.Date("1941-12-31") & STATION == "USW00024175") %>% select(DATE, TMAX) -> old_data_1941
+
+old_data %>% filter(DATE >= as.Date("1940-01-01") & DATE <= as.Date("1940-12-31") & STATION == "USW00024175") %>% select(DATE, TMAX) -> old_data_1940
+
+old_data_1941 %>% mutate(
+    date = as.Date(old_data_1941$DATE),
+    year = year(date),
+    month = month(date, label=T, abbr=T),
+    week = strftime(date,"%W"), 
+    day = day(date),
+    TMAX = TMAX
+) -> old_data_heatmap_41
+
+old_data_1940 %>% mutate(
+    date = as.Date(old_data_1940$DATE),
+    year = year(date),
+    month = month(date, label=T, abbr=T),
+    week = strftime(date,"%W"), 
+    day = day(date),
+    TMAX = TMAX
+) -> old_data_heatmap_40
+
+p_old_heatmap_41 <- ggplot(data = old_data_heatmap_41, aes(x=day,y=month)) + 
+  geom_raster(aes(fill = TMAX)) + 
+  ggtitle("Heat Map of Temperatures in Utah in 1941")+
+  scale_x_continuous(breaks=c(1:31), expand=c(0,0)) + 
+  coord_equal(ratio = 1) + 
+scale_fill_viridis(option="magma") +
+  theme_tufte(base_family="Helvetica")
+
+p_old_heatmap_40 <- ggplot(data = old_data_heatmap_40, aes(x=day,y=month)) + 
+  geom_raster(aes(fill = TMAX)) + 
+  ggtitle("Heat Map of Temperatures in Utah in 1940")+
+  scale_x_continuous(breaks=c(1:31), expand=c(0,0)) + 
+  coord_equal(ratio = 1) + 
+scale_fill_viridis(option="magma") +
+  theme_tufte(base_family="Helvetica")
+
+#Precipitation data
+precPlot <- ggplot(data=percipitation_data,
+                   aes(DATE,PRCP)) +
+                   geom_bar(stat="identity")+
+                   xlab("Date") + ylab("Precipitation (Inches)")+
+                   ggtitle("Daily Precipitation in Utah from 1985 - 2013")
+
+#January average low temps
+min_temp_12_22 %>% mutate(
+    date = as.Date(min_temp_12_22$DATE),
+    year = year(date),
+    month = month(date, label=T, abbr=T),
+    week = strftime(date,"%W"), 
+    day = day(date),
+    TMIN = TMIN
+) -> min_temp_asDate
+min_temp_asDate %>% filter(STATION == 'USW00024127' & month(DATE) == '1') -> jan_min_temp
+
+
+p_mean_jan_low <- ggplot(data = jan_min_temp, aes(x=day,y=year)) + 
+  geom_raster(aes(fill = TMIN)) + 
+  ggtitle("Heat Map of Min Temperatures in January in SLC from 2012-2022")+
+  scale_x_continuous(breaks=c(1:31), expand=c(0,0)) + 
+  coord_equal(ratio = 1) + 
+scale_fill_viridis(option='mako') +
+  theme_tufte(base_family="Helvetica")
+```
+
+## Where is the climate in Utah heading?
+
+As the global spotlight continues to shine light on climate change, it's important to take note of how local areas change with the broader trends of the world. On average, temperatures across the globe are rising at an accelerated rate (https://www.ncei.noaa.gov/access/monitoring/monthly-report/global/202013#gtemp). Seeing that rising temperature is a current global trend, I was interested to see how Utah was or wasn't affected by NOAA's recent climate report. To measure this, I made an effort to pull public measured data from NOAA's database. 
+
+#### The data I pulled is outlined as such:
+- Max temps from 2012 and 2013 (two of Utah's hottest years on record) to compare against 1940 and 1941 (colder years).
+- Min temps from an older range (~1920-1950) and min temps from a more recent range (~1980-2020).
+- Daily precipitation averages from ~1980-2010.
+
+I gathered this data in an effort to get comprehensive results on how Utah's climate might be changing through the years. Temperature is obvious, but a perhaps more severe and unhighlighted effect of climate change is precipitation averages. Precipitation is necessary for much of Utah's agriculture, tourism, and booming population. Without natural water springing from the skies, lakes, and springs, Utah as a whole will turn into a the barren desert everyone thinks it is.
+
+As I analyze and interpret the data I gathered from NOAA, understand that the purpose of this document isn't to suede you to see my opinion on how Utah's climate is changing. In fact, I'll do my best *not* to present my opinion at all. I only want to present you with data with which you can make your own conclusion. That being said, my R and statistical skills are still developing, so be patient with any mistakes you might catch throughout this presentation. I assure you that NOAA's data is simply a statement of fact and the majority of statistical errors will come from me.
+
+## An Overview of the data
+Below are two graphs that provide an overview of the data. The data comes both from a century ago to more contemporary data. I encourage you to play around with the graphs -- you can zoom in and look at the range of individual temperatures in each year (as measured by different stations).
+
+```{r overview}
+p_old_min
+p_recent_min
+p_recent_max
+```
+
+As you can see, it's easy to spot the fluctuation between the summer and winter months -- the plot represents a sinusoidal graph. Because of this, it's relatively simple to spot trends, mins, and maxes. Play around a bit and see if you can find the hottest day in Utah in the last decade and the coldest day almost a century ago!
+
+### Hottest year in the last decade on record
+
+With the data that I gathered and using the graphs above, I want to focus in on 2012. As you can see, the mean max temperature for 2012 was 65.1 with a max of 102 and a min of 27. While this particular data may not be completely indicative of the entire state (Utah has a whole slew of climates), it provides a good enough summary to indicate that 2012 was the hottest year on record, at least in recent years. Feel free to look at the above plots and zoom in on 2012 to see how it compares to other recent years.
+
+```{r hottest year}
+summary(recent_data_2012$TMAX)
+mean_2012 <- mean(recent_data_2012$TMAX)
+mean_2012
+sd_2012 <- sd(recent_data_2012$TMAX)
+sd_2012
+```
+
+##### How does 2012 compare to a reasonabily cold year?
+
+From the data I gathered, 1941 was the coldest year for Utah with a mean max temperature of 63.3 degrees Fahrenheit. That is about 2 degrees colder on average than 2012, which is a significant amount considering the max in 1941 was also 102 degrees and the min 27 degrees.
+
+```{r coldest year}
+summary(old_data_1941$TMAX)
+mean_1941 <- mean(old_data_1941$TMAX)
+mean_1941
+sd_1941 <- sd(old_data_1941$TMAX)
+sd_1941
+t.test(recent_data_2012$TMAX, old_data_1941$TMAX, conf.level = .95)
+```
+
+To further emphasize this point, the confidence interval between these two means is so broad that change between the two years is essentially implied. However, the p-value is also quite large, suggesting the confidence in the data isn't as high as it should be. That means a lot of the data occurs in the tails of these distributions (i.e. less likely data occurs more frequently). Could 1941 just be an outlier year?
+
+#### Was 1941 an outlier year?
+
+Below are the heatmaps for 2012, 2013, 1940, and 1941. These heatmaps are a good way to visualize Utah's "hottest" year against what I measured to be Utah's "coldest" year. What differences do you see? What do the colors tell you about how hot these years got? What trends do you notice? Do you think 1941 was an outlier given just these graphs?
+
+```{r heatmaps}
+p_recent_heatmap_12
+p_recent_heatmap_13
+p_old_heatmap_40
+p_old_heatmap_41
+```
+
+## How cold does Utah's "coldest" month really get?
+
+Now that we've covered Utah's "hottest" and "coldest" years, how about we talk about what is historically one of Utah's "coldest" months: January. Below shows a "heat" map of minimum temperatures recorded in Salt Lake City in the last decade.
+```{r january data}
+mean_jan_low <- mean(jan_min_temp$TMIN)
+sd_jan_low <- sd(jan_min_temp$TMIN)
+mean_jan_low
+p_mean_jan_low
+```
+
+With the mean minimum temperature coming in at a bitter 23.63 degrees, it's obvious that January stays cold. Now, below shows the confidence interval upper and lower bounds of this mean temperature. These bounds suggest that this mean could be higher by .7444 or lower by 0.7444. These even bounds suggest an even distribution and good estimate.
+
+```{r jan conf int}
+n <- 341
+xbar <- mean_jan_low
+s <- sd_jan_low
+
+#calculate margin of error
+margin <- qt(0.95,df=n-1)*s/sqrt(n)
+
+#calculate lower and upper bounds of confidence interval
+low <- xbar - margin
+low
+
+high <- xbar + margin
+high
+
+```
+
+Seeing as though this data is factual and the confidence interval isn't massive, it's safe to say this data is correct and certain.
+
+## Precipitation: Is Utah getting more dry?
+
+A climate change statistic that's often forgotten until it's too late is aridity and dryness as measured by precipitation -- including snow (i.e. directly excluding reservoirs, levees, springs, etc.). Utah is, well, a desert. Rain is hard to come by especially in the summer months when it's needed most. So, the question here presented by the data is: Is Utah getting *drier*?
+To answer this question, let's consider the following plot:
+
+``` {r precipitation}
+precPlot
+```
+
+Feel free to poke around and analyze all you'd like. The bars are darker where more rain consistently accumulated over a day or so and across the state. It appears that rainfall accumulated more from 1985 - 1990, with more tall and dark bars across the board. However, this rainfall seems much less consistent than in the range 1991-2013.
+
+### Confidence in Percipitation Data and What it means for Utah's climate
+To check if this was really the case, I performed a comparison T-test for the two date ranges at a confidence level of 95%. The results are below:
+
+``` {r precip t test}
+percipitation_data %>% filter(DATE >= as.Date("1985-01-01") & DATE <= as.Date("1990-12-31")) %>% select(DATE, PRCP) -> precip_data_modern
+percipitation_data %>% filter(DATE >= as.Date("1991-01-01") & DATE <= as.Date("2013-12-31")) %>% select(DATE, PRCP) -> precip_data_dated
+t.test(precip_data_dated$PRCP, precip_data_modern$PRCP, conf.level = 0.95)
+```
+
+Well, there isn't much of a difference in rainfall between the two date ranges. It does appear that 1985-1990 had a mean rainfall that was higher than 1991-2013, however, the margin-of-error between the two (i.e. the confidence interval) is so small that the differences are *almost* insignificant. But, what do you think? Is .011 inches is a significant difference between the two date ranges? What we can say for certain (with 95% confidence) is that the mean precipitation has declined in the last couple decades.
+
+## Conclusion
+
+That was a lot of reading and a lot of data to digest. Did you make any interesting conclusions while digesting? Hopefully the colors made everything more palatable. When talking about climate change, it's important to not jump to any conclusions or preconceived notions about how climate change is represented in modern media and politics. Climate change is just that: change. We can see there has been a change in warmth and precipitation in the last century. Is it enough to be concerned about? Well, that's up to you. Small changes can mount in either direction.
+
+To re-acknowledge any mishaps in the data -- there was *lots* of data missing from some stations across the state. There were some instances where I had to hyper-focus my station selection in order to get representative data in the first place. However, given my knowledge of the state and its various biomes, I left it up to my unbiased judgement to pick areas that would be representative of Utah as a whole when necessary. That being said, any other statistical errors or otherwise could also come from my inexperience with R. Don't blame NOAA for bad data.
+
+Now that you're more informed about Utah's climate and how it has changed over the years, what will you do with this data?
